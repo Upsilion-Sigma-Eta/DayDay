@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!--custom color-->
+    <color name="Clod_level2"> #173F91</color>
+    <color name="Clod_level2_background"> #4D173F91</color>
+    <color name="Clod_level1"> #4175C8</color>
+    <color name="Clod_level1_background"> #4D4175C8</color>
+    <color name="MainColor"> #FFD867</color>
+    <color name="MainColor_background"> #4DFFD867</color>
+    <color name="Hot_level1"> #F0A273</color>
+    <color name="Hot_level1_background"> #4DF0A273</color>
+    <color name="Hot_level2"> #DC6B60</color>
+    <color name="Hot_level2_background"> #4DDC6B60</color>
+</resources>
