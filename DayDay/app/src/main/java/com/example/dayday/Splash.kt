@@ -7,6 +7,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.ProgressDialog
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService
 
 
 import android.net.Uri
+import android.os.Handler
 import java.util.concurrent.TimeUnit
 import android.provider.Settings
 import com.gun0912.tedpermission.TedPermission
@@ -34,7 +36,7 @@ class Splash : AppCompatActivity() {
         Manifest.permission.GET_ACCOUNTS,
         Manifest.permission.ACCESS_COARSE_LOCATION
     )
-
+    //private val resultsFromApi = MainActivity.getInstance()?.resultsFromApi
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,11 +71,17 @@ class Splash : AppCompatActivity() {
                 multiplePermissionsCode
             )
         }
-        else {
-            val intent = Intent(this, MainActivity::class.java)
+
+
+        //resultsFromApi
+
+        Handler().postDelayed({
+            // You can declare your desire activity here to open after finishing splash screen. Like MainActivity
+            val intent = Intent(this,MainActivity::class.java)
             startActivity(intent)
             finish()
-        }
+        }, 1000)
+
 
     }
 }

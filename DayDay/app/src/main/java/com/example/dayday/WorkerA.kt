@@ -1,6 +1,9 @@
 package com.example.dayday
 
+import android.app.Activity
 import android.content.Context
+import android.util.Log
+import android.view.View
 import android.widget.*
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
@@ -9,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.example.dayday.Constants.A_MORNING_EVENT_TIME
 import com.example.dayday.Constants.A_NIGHT_EVENT_TIME
 import com.example.dayday.Constants.KOREA_TIMEZONE
+import com.example.dayday.databinding.ActivityMainBinding
 import kotlinx.android.synthetic.main.activity_main.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -16,6 +20,7 @@ import java.util.concurrent.TimeUnit
 
 class WorkerA(context: Context, params: WorkerParameters) : Worker(context, params) {
     var str = ""
+
     override fun doWork(): Result {
         val mNotificationHelper = NotificationHelper(applicationContext)
         val currentMillis =
@@ -25,12 +30,19 @@ class WorkerA(context: Context, params: WorkerParameters) : Worker(context, para
         // 2022-06-09 알람 1에서 설정한 시각으로 설정
 //        var formatter = SimpleDateFormat("hh:mm:ss")
         //str = MainActivity.getInstance()?.findViewById<EditText>(R.id.alarmTime1)?.text.toString()
-        var tbn = MainActivity.getInstance()?.findViewById<ToggleButton>(R.id.tbn_1)
-        tbn?.setOnCheckedChangeListener(CheckedChange())
+
+//        str = MainActivity.getInstance()?.findViewById<TextView>(R.id.alarmTime)?.text.toString()   //null
+
+        // 2022-06-21 NULL이 아닌 경우에만 알람시각이 설정되도록 조정
+        if (MainActivity.getInstance()?.alarmTime != null) {
+            str = MainActivity.getInstance()?.alarmTime?.text.toString()
+        }
 
         if (str.isNullOrEmpty()) {
             str = "00:00:00"
         }
+        else
+            str += ":00"
         var date = str
 
         val eventCal = NotificationHelper.getScheduledCalender(date)
@@ -58,50 +70,11 @@ class WorkerA(context: Context, params: WorkerParameters) : Worker(context, para
         else {
             // 그 외의 경우 가장 빠른 A 이벤트 예정 시각까지의 notificationDelay 계산하여 딜레이 호출
             val notificationDelay = NotificationHelper.getNotificationDelay(Constants.WORK_A_NAME)
-            val workRequest = OneTimeWorkRequest.Builder(WorkerB::class.java)
+            val workRequest = OneTimeWorkRequest.Builder(WorkerA::class.java)
                 .setInitialDelay(notificationDelay, TimeUnit.MILLISECONDS)
                 .build()
             WorkManager.getInstance(applicationContext).enqueue(workRequest)
         }
         return Result.success()
-    }
-
-    inner class CheckedChange : CompoundButton.OnCheckedChangeListener{
-        override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
-            when(buttonView?.id){
-                R.id.tbn_1->
-                    if(isChecked){
-                        str =  "06:10:00"
-                    }
-                R.id.tbn_2->
-                    if(isChecked){
-                        str = "05:00:00"
-                    }
-                R.id.tbn_3->
-                    if(isChecked){
-                        str = "08:00:00"
-                    }
-                R.id.tbn_4->
-                    if(isChecked){
-                        str = "11:00:00"
-                    }
-                R.id.tbn_5->
-                    if(isChecked){
-                        str = "14:00:00"
-                    }
-                R.id.tbn_6->
-                    if(isChecked){
-                        str = "17:00:00"
-                    }
-                R.id.tbn_7->
-                    if(isChecked){
-                        str = "20:00:00"
-                    }
-                R.id.tbn_8->
-                    if(isChecked){
-                        str = "23:00:00"
-                    }
-            }
-        }
     }
 }

@@ -1,12 +1,12 @@
 package com.example.dayday
 
-import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.graphics.toColor
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.*
@@ -58,7 +58,6 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
 //        }
 //    }
 
-
     inner class ViewHolder(parent: ViewGroup, itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         val summary: TextView = itemView.findViewById(R.id.schedule_summary_text_view)
@@ -68,8 +67,7 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
         val parentView = parent
 
         //텍스트뷰에 데이터 세팅
-        @SuppressLint("ResourceAsColor")
-        fun setItem(item : ModelWeather) {
+        fun setItem(item : Schedule) {
             //val tvTime = itemView.findViewById<TextView>(R.id.tvTime)           // 시각
             //val tvRainType = itemView.findViewById<TextView>(R.id.tvRainType)   // 강수 형태
             //val tvHumidity = itemView.findViewById<TextView>(R.id.tvHumidity)   // 습도
@@ -81,11 +79,18 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
             //tvRainType.text = getRainType(item.rainType)
             //tvHumidity.text = item.humidity
             //tvSky.text = getSky(item.sky)
-            
-            //2022.06.04 날씨 정보가 있는 일정 카드만 날씨 표시
-            val raw_day_txt = schedule_list[position].begin.split("T")
-            val day_txt = raw_day_txt[0].split("-")
 
+            var raw_day_txt : List<String>
+
+            if (item.begin.contains("T") == false) {
+                raw_day_txt = item.dtstart.split("T")
+            }
+            else {
+                raw_day_txt = item.begin.split("T")
+            }
+
+            var day_txt = raw_day_txt[0].split("-")
+            calendar_date.text = day_txt[1] + "월 " +day_txt[2] + "일"
 
             // 2022-06-09 하루종일인 일정이 있을 때 크래시 방지
             var calendar_day = ""
@@ -102,21 +107,26 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
                 calendar_day = day_txt[0]
             }
             else {
-                calendar_day = day_txt[1] + day_txt[2] + time_txt[0] + time_txt[1]
+                calendar_day = day_txt[2] + time_txt[0] + time_txt[1]
+                //ddTTMM
             }
 
-            var day = SimpleDateFormat("MMdd", Locale.getDefault()).format(Calendar.getInstance().time)
+            var day = SimpleDateFormat("dd", Locale.getDefault()).format(Calendar.getInstance().time)
             val cal = Calendar.getInstance()
             var time = SimpleDateFormat("HH", Locale.getDefault()).format(cal.time) // 현재 시간
             var weatherday = (day.toInt()+((time.toInt()+71)/24)).toString()
             time = ((time.toInt()+71)%24).toString() + "00"
 
+            if(calendar_day < weatherday+time){
+                    setWeather(36,128, item)
 
-            if(calendar_day <= weatherday+time){
-                    tvTemp.text = item.temp + "°"
-                if(calendar_day==day) {
-
-                }
+                    val sky = (
+                            when(item.weather.rainType) {
+                                "0" -> item.weather.sky ?: "0"
+                                else -> (1+10).toString()
+                            }
+                    )
+                    weather_icon.setImageResource(Utils.decideWeatherIcon(sky))
             }
             else
                 constraintBar_layout.visibility = View.INVISIBLE
@@ -138,8 +148,8 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
 //                    constairnt_layout.setBackgroundColor(0x4DA41000)
 //                }
 //            }
-            if (item.temp != "") {
-                val temp_int = item.temp.toInt()
+            if (item.weather.temp != "") {
+                val temp_int = item.weather.temp.toInt()
                 //val constairnt_layout = itemView.findViewById<ConstraintLayout>(R.id.constraint_layout)
                 val constraintBar_layout = itemView.findViewById<View>(R.id.constraintBar_layout)
                 if (temp_int <= 15) {
@@ -177,25 +187,8 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
         holder.summary.text = schedule_list[position].summary
         //holder.description.text = schedule_list[position].description
         // 2022-06-09 크래시 방지를 위한 검사 절차 추가
-        var raw_day_txt : List<String>
 
-        if (schedule_list[position].begin.contains("T") == false) {
-            raw_day_txt = schedule_list[position].dtstart.split("T")
-        }
-        else {
-            raw_day_txt = schedule_list[position].begin.split("T")
-        }
-
-        var day_txt = raw_day_txt[0].split("-")
-        holder.calendar_date.text = day_txt[1] + "월 " +day_txt[2] + "일"
-
-        val weather = schedule_list[position].weather
-
-        holder.weather_icon.setImageResource(Utils.decideWeatherIcon(weather))
-
-
-        val item = weatherArr[position]
-        holder.setItem(item)
+        holder.setItem(schedule_list[position])
     }
 
     override fun getItemCount(): Int {
@@ -226,6 +219,69 @@ class ScheduleAdapter(): RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
             "4" -> "흐림"
             else -> "오류 rainType : " + sky
         }
+    }
+
+    fun setWeather(nx : Int, ny : Int, item:Schedule) {
+
+//        var raw_date_txt : List<String>
+//        if (!schedule_list.begin.contains("T")) {
+//            raw_date_txt = schedule_list.dtstart.split("T")
+//        }
+//        else {
+//            raw_date_txt = schedule_list.begin.split("T")
+//        }
+//
+//        val date_txt = raw_date_txt[0].split("-")
+//        var basedate = date_txt[0] + date_txt[1] + date_txt[2]
+//
+//        val time_txt = raw_date_txt[1].split(":")
+//        val ctime = time_txt[0]
+//
+//
+//        var d = basedate.toInt()-base_date.toInt()
+//        var t = base_time.toInt()-ctime.toInt()
+//        var cnt = d*24+t
+
+
+        val weathered = MainActivity.getInstance()?.weatheritem
+        // 비동기적으로 실행하기
+        if (weathered != null) {
+            if(weathered.isNotEmpty()){
+                for (i in 0..11) {
+
+                    //if(index==cnt) {
+                    when (weathered[i].category) {
+                        "PTY" -> item.weather.rainType = weathered[i].fcstValue     // 강수 형태
+                        "REH" -> item.weather.humidity = weathered[i].fcstValue     // 습도
+                        "SKY" -> item.weather.sky = weathered[i].fcstValue          // 하늘 상태
+                        "TMP" -> item.weather.temp = weathered[i].fcstValue         // 기온
+                        else -> continue
+                    }
+
+                    item.weather.Time = weathered[i].fcstTime
+                    //}
+                    //else if(index>cnt)
+                    //    return
+                }
+            }
+        }
+
+    }
+
+    /** 예보 시간 반환 함수 ************************************************************************/
+    fun getTime(time : String) : String {
+        var result = ""
+        when(time) {
+            in "00".."02" -> result = "2300"    // 00~02
+            in "03".."05" -> result = "0200"    // 03~05
+            in "06".."08" -> result = "0500"    // 06~08
+            in "09".."11" -> result = "0800"    // 09~11
+            in "12".."14" -> result = "1100"    // 12~14
+            in "15".."17" -> result = "1400"    // 15~17
+            in "18".."20" -> result = "1700"    // 18~20
+            else -> result = "2000"             // 21~23
+        }
+        return result
     }
 }
 

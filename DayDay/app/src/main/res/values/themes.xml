@@ -5,4 +5,8 @@
 </style>
   <style name="Theme.DayDay.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
   <style name="Theme.DayDay.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+  <style name="MyTimePickerTheme" parent="android:Widget.Material.Light.TimePicker">
+    <item name="android:timePickerMode">spinner</item>
+  </style>
+
 </resources>

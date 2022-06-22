@@ -32,19 +32,23 @@ class WeatherScheduleAdapter (var items : Array<ModelWeather>) : RecyclerView.Ad
             val tvTime = itemView.findViewById<TextView>(R.id.weather_time)            // 시각
             var timedata = item.Time.substring(0 until 2)
 
-            imgWeather.setImageResource(getWeatherImage(item.sky))
+            imgWeather.setImageResource(getWeatherImage(item))
             tvTemp.text = item.temp + "°"
             tvTime.text = timedata + "시"
         }
     }
 
-    fun getWeatherImage(sky : String) : Int {
+    fun getWeatherImage(item : ModelWeather) : Int {
         // 하늘 상태
-        return when(sky) {
-            "1" ->R.drawable.sunny                  // 맑음
-            "3" ->  R.drawable.cloud                  // 구름 많음
-            "4" -> R.drawable.little_cloud            // 흐림
-            else -> R.drawable.ic_launcher_foreground // 오류
-        }
+        // 06.20 소스 수정
+        val sky = (
+                when(item?.rainType) {
+
+                    "0" -> item?.sky ?: ""
+                    else -> (item?.rainType!!.toInt() + 10).toString()
+                }
+        )
+
+        return Utils.decideWeatherIcon(sky)
     }
 }

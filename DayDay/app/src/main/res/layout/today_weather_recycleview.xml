@@ -21,6 +21,7 @@
             android:layout_height="wrap_content"
             android:text="00시"
             android:textAlignment="center"
+            android:textColor="#FFF"
             android:textSize="12dp" />
 
         <ImageView
@@ -36,6 +37,7 @@
             android:layout_height="wrap_content"
             android:text="00℃"
             android:textAlignment="center"
+            android:textColor="#FFF"
             android:textSize="12dp" />
     </LinearLayout>
 </LinearLayout>

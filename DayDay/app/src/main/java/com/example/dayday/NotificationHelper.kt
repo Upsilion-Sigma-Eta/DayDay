@@ -347,7 +347,8 @@ class NotificationHelper internal constructor(private val mContext: Context) {
             if (workName == WORK_A_NAME) {
                 // 2022-06-09 입력받은 시각으로 기존 고정된 시각 대체
 //                var formatter = SimpleDateFormat("hh:mm:ss")
-                var str = MainActivity.getInstance()?.findViewById<EditText>(R.id.alarmTime1)?.text.toString()
+                // 2022-06-21 알림시간 설정 위젯에서 설정을 가져올 수 있도록 설정
+                var str = MainActivity.getInstance()?.alarmTime?.text.toString()
 
                 // #!
                 Log.i("DEBUG ALARM A", str)
@@ -372,34 +373,39 @@ class NotificationHelper internal constructor(private val mContext: Context) {
                     pushDelayMillis =
                         getScheduledCalender(date).timeInMillis - currentMillis
                 }
+                else {
+                    // 2022-06-21 그 외의 경우에 알림이 뜨도록 추가
+                    pushDelayMillis = getScheduledCalender(date).timeInMillis - currentMillis
+                }
+                
             }
-            else if (workName == WORK_B_NAME) {
-                // 2022-06-09 입력받은 시각으로 기존 고정된 시각 대체
-//                var formatter = SimpleDateFormat("hh:mm:ss")
-                var str = MainActivity.getInstance()?.findViewById<EditText>(R.id.alarmTime2)?.text.toString()
-                if (str.isNullOrEmpty()) {
-                    str = "00:00:00"
-                }
-                // #!
-                Log.i("DEBUG ALARM B", str)
-
-                var date = str
-
-                // 현재 시각이 21:00보다 크면 다음 날 오전 알림, 현재 시각이 21:00 전인지 09:00 전인지에 따라 알림 딜레이 설정
-                if (cal[Calendar.HOUR_OF_DAY] >= B_NIGHT_EVENT_TIME) {
-                    val nextDayCal = getScheduledCalender(date)
-                    nextDayCal.add(Calendar.DAY_OF_YEAR, 1)
-                    pushDelayMillis = nextDayCal.timeInMillis - currentMillis
-                }
-                else if (cal[Calendar.HOUR_OF_DAY] >= B_MORNING_EVENT_TIME && cal[Calendar.HOUR_OF_DAY] < B_NIGHT_EVENT_TIME) {
-                    pushDelayMillis =
-                        getScheduledCalender(date).timeInMillis - currentMillis
-                }
-                else if (cal[cal[Calendar.HOUR_OF_DAY]] < B_MORNING_EVENT_TIME) {
-                    pushDelayMillis =
-                        getScheduledCalender(date).timeInMillis - currentMillis
-                }
-            }
+//            else if (workName == WORK_B_NAME) {
+//                // 2022-06-09 입력받은 시각으로 기존 고정된 시각 대체
+////                var formatter = SimpleDateFormat("hh:mm:ss")
+//                var str = MainActivity.getInstance()?.findViewById<EditText>(R.id.alarmTime2)?.text.toString()
+//                if (str.isNullOrEmpty()) {
+//                    str = "00:00:00"
+//                }
+//                // #!
+//                Log.i("DEBUG ALARM B", str)
+//
+//                var date = str
+//
+//                // 현재 시각이 21:00보다 크면 다음 날 오전 알림, 현재 시각이 21:00 전인지 09:00 전인지에 따라 알림 딜레이 설정
+//                if (cal[Calendar.HOUR_OF_DAY] >= B_NIGHT_EVENT_TIME) {
+//                    val nextDayCal = getScheduledCalender(date)
+//                    nextDayCal.add(Calendar.DAY_OF_YEAR, 1)
+//                    pushDelayMillis = nextDayCal.timeInMillis - currentMillis
+//                }
+//                else if (cal[Calendar.HOUR_OF_DAY] >= B_MORNING_EVENT_TIME && cal[Calendar.HOUR_OF_DAY] < B_NIGHT_EVENT_TIME) {
+//                    pushDelayMillis =
+//                        getScheduledCalender(date).timeInMillis - currentMillis
+//                }
+//                else if (cal[cal[Calendar.HOUR_OF_DAY]] < B_MORNING_EVENT_TIME) {
+//                    pushDelayMillis =
+//                        getScheduledCalender(date).timeInMillis - currentMillis
+//                }
+//            }
             return pushDelayMillis
         }
 
@@ -487,7 +493,7 @@ class NotificationHelper internal constructor(private val mContext: Context) {
 
             cal[Calendar.HOUR_OF_DAY] = splitted_time[0].toInt()
             cal[Calendar.MINUTE] = splitted_time[1].toInt()
-            cal[Calendar.SECOND] = splitted_time[2].toInt()
+            cal[Calendar.SECOND] = 0
 
             // #!
             Log.i("DEBUG ALRAM", cal.time.toString())

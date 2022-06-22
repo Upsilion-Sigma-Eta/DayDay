@@ -9,14 +9,16 @@
     <color name="white">#FFFFFFFF</color>
 
     <!--custom color-->
-    <color name="Clod_level2"> #173F91</color>
-    <color name="Clod_level2_background"> #4D173F91</color>
-    <color name="Clod_level1"> #4175C8</color>
-    <color name="Clod_level1_background"> #4D4175C8</color>
-    <color name="MainColor"> #FFD867</color>
-    <color name="MainColor_background"> #4DFFD867</color>
-    <color name="Hot_level1"> #F0A273</color>
-    <color name="Hot_level1_background"> #4DF0A273</color>
-    <color name="Hot_level2"> #DC6B60</color>
-    <color name="Hot_level2_background"> #4DDC6B60</color>
+    <color name="Clod_level2"> #195090</color>
+    <color name="Clod_level2_background"> #4D195090</color>
+    <color name="Clod_level1"> #009498</color>
+    <color name="Clod_level1_background"> #4D009498</color>
+    <color name="MainColor"> #87DDDE</color>
+    <color name="MainColor_background"> #4D87DDDE</color>
+    <color name="Hot_level1"> #F3ADCB</color>
+    <color name="Hot_level1_background"> #4DF3ADCB</color>
+    <color name="Hot_level2"> #E84566</color>
+    <color name="Hot_level2_background"> #4DE84566</color>
+    <color name="Rain"> #262F56</color>
+    <color name="Rain_background"> #4D262F56</color>
 </resources>

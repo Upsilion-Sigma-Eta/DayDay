@@ -3,21 +3,22 @@ package com.example.dayday
 import android.util.Log
 
 // 데이터 클래스로 만듬
-data class Schedule( var uid: String = "",
-                     var created: String = "",
-                     var description: String = "",
-                     var last_modified: String = "",
-                     var location: String = "",
-                     var sequence: String = "",
-                     var status: String = "",
-                     var summary: String = "",
-                     var transp: String = "",
-                     var end: String = "",
-                     var begin: String = "",
-                     var dtstart: String = "",
-                     var dtend: String = "",
-                     var dtstamp: String = "",
-                     var weather: String = "") {
+data class Schedule(var uid: String = "",
+                    var created: String = "",
+                    var description: String = "",
+                    var last_modified: String = "",
+                    var location: String = "",
+                    var sequence: String = "",
+                    var status: String = "",
+                    var summary: String = "",
+                    var transp: String = "",
+                    var end: String = "",
+                    var begin: String = "",
+                    var dtstart: String = "",
+                    var dtend: String = "",
+                    var dtstamp: String = "",
+                    var weather: ModelWeather
+) {
 //    var uid = ""
 //    var created = ""
 //    var description = ""
@@ -84,9 +85,6 @@ data class Schedule( var uid: String = "",
         }
         else if (before_delimeter.equals("DTSTAMP")) {
             this.dtstamp = after_delimeter
-        }
-        else if (before_delimeter.equals("WEATHER")) {
-            this.weather = after_delimeter
         }
     }
 }

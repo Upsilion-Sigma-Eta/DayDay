@@ -34,6 +34,8 @@
  *								위치 API 추가, 주소 검색 기능 추가, 리사이클러 뷰 추가 및 데이터 연결
  *	 윤상현		2022.06.09		노티피케이션이 백그라운드에서 뜨도록 수정
  *								알람 시각 설정 기능 및 여부 추가
+ *	 이선아      2022.06.20      Notification 키보드 입력->TimerUI 사용, 이전 설정 내용 저장
+ *	                            schedule list 어플리케이션 실행하면 자동 갱신
  *************************************************************************************************/
 
 
@@ -70,8 +72,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-import android.text.TextUtils
-import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -104,10 +104,6 @@ import com.google.api.services.calendar.model.CalendarList
 import com.google.api.services.calendar.model.Event
 import com.google.api.services.calendar.model.EventDateTime
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.EasyPermissions
 import retrofit2.Call
@@ -115,10 +111,6 @@ import retrofit2.Response
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
@@ -130,6 +122,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var member_schedule_adapter: ScheduleAdapter
     // 2022-06-09 ViewBinding 활용을 위해서 binding 선언
     lateinit var binding: ActivityMainBinding
+
+    // 2022-06-21 알람 시각 설정을 위한 변수 선언
+    var alarmTime: TextView? = null
 
     // 메인 액티비티 인스턴스 생성
     init {
@@ -182,8 +177,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var base_time : String  // 발표 시각
 
     private var curPoint : Point? = null    // 현재 위치의 격자 좌표를 저장할 포인트
-    private var cur_x : Double = 0.0
-    private var cur_y : Double = 0.0
+    public var cur_x : Double = 0.0
+    public var cur_y : Double = 0.0
 
     // 현재 시간부터 1시간 뒤의 날씨를 일정의 개수만큼 담을 배열
     // 2022.06.02 상단 가로 리사이클러뷰에 사용할 weatherArr(9개)
@@ -192,7 +187,8 @@ class MainActivity : AppCompatActivity() {
         ModelWeather(), ModelWeather(), ModelWeather(),
         ModelWeather(), ModelWeather(), ModelWeather(),
         ModelWeather(), ModelWeather(), ModelWeather())
-    var cnt = 0//오늘 일정 개수
+
+    var weatheritem : List<ITEM>? = emptyList()
 
 
 
@@ -210,7 +206,7 @@ class MainActivity : AppCompatActivity() {
     var mCredential: GoogleAccountCredential? = null
 //    private var mStatusText: TextView? = null
 //    private var mResultText: TextView? = null
-    private var mGetEventButton: Button? = null
+//    private var mGetEventButton: Button? = null
 //    private var mAddEventButton: Button? = null
 //    private var mAddCalendarButton: Button? = null
 //    private var mPanelSlide: Button? = null
@@ -261,13 +257,15 @@ class MainActivity : AppCompatActivity() {
 
         // 2022-06-09 ViewBinding 활용.
         binding = ActivityMainBinding.inflate(layoutInflater)
+        alarmTime = findViewById(R.id.alarmTime)
+
+        SetPermission()
 
         mainSetLocation()
         mainScheduleView()
         mainGoogleCalendar()
         mainNotification()
         mainNotificationTime()
-
 
         //    var date : TextView = findViewById<View>(R.id.date) as TextView
         // date.text = "5월 21일"
@@ -323,12 +321,12 @@ class MainActivity : AppCompatActivity() {
         //2022.06.02 location_icon: 현재 위치
         //           location_text: 선택
 
+
         location_icon.setOnClickListener(userLocationListener())
         location_text.setOnClickListener(addrLocationListener())
         if(!location_icon.isSelected && !location_text.isSelected&&
             ContextCompat.checkSelfPermission(this, requiredPermissions[1]) == PackageManager.PERMISSION_GRANTED)
             requestLocation()
-        //SetPermission()
         loadData()
     }
 
@@ -372,25 +370,31 @@ class MainActivity : AppCompatActivity() {
     //                                  Save & Load Data                                        //
     //////////////////////////////////////////////////////////////////////////////////////////////
     /** 위치 정보 저장 ****************************************************************************/
-    private fun saveData(nx:Double, ny:Double){
+    private fun saveData(){
         val pref = this.getPreferences(0)
+        var settime = findViewById<TextView>(R.id.alarmTime)
         val editor=pref.edit()
 
         editor.putBoolean("KEY_ICON",location_icon.isSelected)  //현재 위치 Selected(T/F)
             .putBoolean("KEY_TEXT",location_text.isSelected)    //선택 위치 Selected(T/F)
-            .putFloat("KEY_X", nx.toFloat())                    //x좌표
-            .putFloat("KEY_Y", ny.toFloat())                    //y좌표
+            .putFloat("KEY_X", cur_x.toFloat())                    //x좌표
+            .putFloat("KEY_Y", cur_y.toFloat())                    //y좌표
+            .putString("KEY_NOTI", settime.text.toString())     //알림 시간
             .apply()
     }
 
     /** 위치 정보 불러오기 *************************************************************************/
     private fun loadData(){
+
+        var settime = findViewById<TextView>(R.id.alarmTime)
+
         val pref=this.getPreferences(0)
         // 키에 해당되는 밸류를 가져오는데 저장된 값이 없으면 0을 가져온다
         val kicon=pref.getBoolean("KEY_ICON",false)
         val ktext=pref.getBoolean("KEY_TEXT",false)
-        var kx=pref.getFloat("KEY_X", 0F)
-        var ky=pref.getFloat("KEY_Y", 0F)
+        var kx=pref.getFloat("KEY_X", 36.119485F)
+        var ky=pref.getFloat("KEY_Y", 37.5666805F)
+        var ktime=pref.getString("KEY_NOTI", "12:00")
 
         location_icon.isSelected = kicon
         location_text.isSelected = ktext
@@ -413,6 +417,9 @@ class MainActivity : AppCompatActivity() {
             else
                 location_text.text = "주소를 입력해주세요."
         }
+
+
+        settime.text = ktime
     }
 
 
@@ -479,7 +486,9 @@ class MainActivity : AppCompatActivity() {
                 for(i in 3..currentAddr.size)
                     addr += currentAddr[i-1] + " "
                 location_text.text = addr
-                saveData(results[0].latitude, results[0].longitude)
+                cur_x=results[0].latitude
+                cur_y=results[0].longitude
+                saveData()
 
                 return true
             }
@@ -673,8 +682,17 @@ class MainActivity : AppCompatActivity() {
         // 2022-05-28 실제 구글 캘린더 데이터가 연동되므로 더미 데이터의 입력은 불필요함
 //        readDummyFile(schedule_list_inner)
 
+        // 오늘 날짜 텍스트뷰 설정
+        tvDate = findViewById(R.id.date)   // 오늘 날짜 텍스트뷰
+        tvDate.text = SimpleDateFormat(
+            "M월 d일",
+            Locale.getDefault()
+        ).format(Calendar.getInstance().time)
+
+
         // 리사이클러 뷰의 어댑터와 뷰모델을 인스턴스화
         model = ViewModelProvider(this).get(ScheduleViewModel::class.java)
+        instance?.model = model
 
         // 리사이클러 뷰 호출
         member_schedule_adapter = ScheduleAdapter()
@@ -731,14 +749,16 @@ class MainActivity : AppCompatActivity() {
         base_time = getTime(time)
         // 동네예보  API는 3시간마다 현재시간+4시간 뒤의 날씨 예보를 알려주기 때문에
         // 현재 시각이 00시가 넘었다면 어제 예보한 데이터를 가져와야함
-        if (base_time >= "2000") {
+        if (base_time >= "2300") {
             cal.add(Calendar.DATE, -1).toString()
             base_date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(cal.time)
         }
         // 날씨 정보 가져오기
         // (한 페이지 결과 수 = 60, 페이지 번호 = 1, 응답 자료 형식-"JSON", 발표 날짜, 발표 시각, 예보지점 좌표)
-        val call = ApiObject.retrofitService.GetWeather(918, 1, "JSON",
+        var call = ApiObject.retrofitService.GetWeather(918, 1, "JSON",
             base_date, base_time, nx, ny)
+
+        Log.d("x:" + base_date.toString(), "y:"+base_time.toString())
         // 비동기적으로 실행하기
         call.enqueue(object : retrofit2.Callback<WEATHER> {
             // 응답 성공 시
@@ -747,15 +767,24 @@ class MainActivity : AppCompatActivity() {
                 if (response.isSuccessful) {
                     // 날씨 정보 가져오기
                     val it: List<ITEM> = response.body()!!.response.body.items.item
+                    weatheritem = it
 
                     // 배열 채우기
                     var index = 0
                     val totalCount = response.body()!!.response.body.totalCount
 
-                    //for (i in 0..totalCount) {
-                    for (i in 0..107) {
-                        if ((i%12)==0&&i!=0)
+                    var nowTime = (
+                            when(base_time){
+                                "2300" -> (time+"00").toInt()-base_time.toInt()+2400-100
+                                else -> (time+"00").toInt()-base_time.toInt()-100
+                            })/100
+                    val startcount = 12*nowTime
+                    val count = 12*(9+nowTime)-1
+
+                    for (i in startcount..count) {
+                        if ((i%12)==0&&i!=startcount){
                             index++
+                        }
 
                         when(it[i].category) {
                             "PTY" -> weatherArr[index].rainType = it[i].fcstValue     // 강수 형태
@@ -815,15 +844,18 @@ class MainActivity : AppCompatActivity() {
 
 
                     // 2022-06-02 메인 화면 상단에 현재 날씨 표시
+                    // 06.20 rain & snow 아이콘 추가
                     val mainTemp = findViewById<TextView>(R.id.temperature)    // 온도
                     val imgWeather = findViewById<ImageView>(R.id.imageView)    //아이콘
                     mainTemp.text = weatherArr[0].temp+"˚"
-                    imgWeather.setImageResource(when(weatherArr[0].sky) {
-                        "1" ->R.drawable.sunny                    // 맑음
-                        "3" ->  R.drawable.cloud                  // 구름 많음
-                        "4" -> R.drawable.little_cloud            // 흐림
-                        else -> R.drawable.ic_launcher_foreground // 오류
-                    })
+                    val sky = (
+                            when(weatherArr[0].rainType) {
+
+                                "0" -> weatherArr[0].sky ?: ""
+                                else -> (weatherArr[0].rainType.toInt() + 10).toString()
+                            }
+                    )
+                    imgWeather.setImageResource(Utils.decideWeatherIcon(sky))
 
                     // 2022-06-01 상단 현재 날씨 바 전체에 기온별로 색깔을 씌우기 위한 코드
                     // 2022-06-01 카드와 동일한 공식을 이용해서 전체 색깔을 바꿈.
@@ -844,7 +876,7 @@ class MainActivity : AppCompatActivity() {
 //                    }
 
 
-                    val today_weahter_bar = findViewById<ConstraintLayout>(R.id.main_background)
+                    val today_weahter_bar = findViewById<LinearLayout>(R.id.main_background)
                     val tempInt = weatherArr[0].temp.toInt()
 
                     if (tempInt <= 13) {
@@ -852,7 +884,8 @@ class MainActivity : AppCompatActivity() {
                     } else if (tempInt <= 15) {
                         today_weahter_bar.setBackgroundColor(resources.getColor(R.color.Clod_level1))
                     } else if (tempInt <= 33) {
-                        today_weahter_bar.setBackground(getResources().getDrawable(R.drawable.natural))
+                        today_weahter_bar.setBackgroundColor(resources.getColor(R.color.MainColor))
+                        //today_weahter_bar.setBackground(getResources().getDrawable(R.drawable.background_main))
                     } else if (tempInt <= 35) {
                         today_weahter_bar.setBackgroundColor(resources.getColor(R.color.Hot_level1))
                     } else if (tempInt > 35) {
@@ -867,26 +900,27 @@ class MainActivity : AppCompatActivity() {
 
             // 응답 실패 시
             override fun onFailure(call: Call<WEATHER>, t: Throwable) {
-                val tvError = findViewById<TextView>(R.id.tvError)
-                tvError.text = "api fail : " +  t.message.toString() + "\n 다시 시도해주세요."
-                tvError.visibility = View.VISIBLE
+//                val tvError = findViewById<TextView>(R.id.errormsg)
+//                tvError.text = "api fail : " +  t.message.toString() + "\n 다시 시도해주세요."
+//                tvError.visibility = View.VISIBLE
                 Log.d("api fail", t.message.toString())
             }
         })
     }
 
+
     /** 예보 시간 반환 함수 ************************************************************************/
     fun getTime(time : String) : String {
         var result = ""
         when(time) {
-            in "00".."02" -> result = "2300"    // 00~02
             in "03".."05" -> result = "0200"    // 03~05
             in "06".."08" -> result = "0500"    // 06~08
             in "09".."11" -> result = "0800"    // 09~11
             in "12".."14" -> result = "1100"    // 12~14
             in "15".."17" -> result = "1400"    // 15~17
             in "18".."20" -> result = "1700"    // 18~20
-            else -> result = "2000"             // 21~23
+            in "21".."23" -> result = "2000"    // 21~23
+            else -> result = "2300"             // 00~02
         }
         return result
     }
@@ -979,7 +1013,9 @@ class MainActivity : AppCompatActivity() {
 
                 try {
                     mResultList = mGeocoder.getFromLocation(latitude, longitude, 1)
-                    saveData(latitude, longitude)
+                    cur_x=latitude
+                    cur_y=longitude
+                    saveData()
                     //println("위치 정보 받아오기 성공")
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -995,12 +1031,12 @@ class MainActivity : AppCompatActivity() {
                                 curPoint = dfs_xy_conv(location.latitude, location.longitude)
                                 setWeather(curPoint!!.x, curPoint!!.y)
 
-                                // 오늘 날짜 텍스트뷰 설정
-                                tvDate = findViewById(R.id.date)   // 오늘 날짜 텍스트뷰
-                                tvDate.text = SimpleDateFormat(
-                                    "M월 d일",
-                                    Locale.getDefault()
-                                ).format(Calendar.getInstance().time)
+//                                // 오늘 날짜 텍스트뷰 설정
+//                                tvDate = findViewById(R.id.date)   // 오늘 날짜 텍스트뷰
+//                                tvDate.text = SimpleDateFormat(
+//                                    "M월 d일",
+//                                    Locale.getDefault()
+//                                ).format(Calendar.getInstance().time)
 
                                 var currentAddr = setXYtoAddr(latitude, longitude).split(' ')
                                 var addr = ""
@@ -1138,7 +1174,6 @@ class MainActivity : AppCompatActivity() {
 
 
 
-
     //////////////////////////////////////////////////////////////////////////////////////////////
     //                                      Google Calendar                                     //
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1154,7 +1189,7 @@ class MainActivity : AppCompatActivity() {
     fun mainGoogleCalendar() {
 //        mAddCalendarButton = findViewById<View>(R.id.button_main_add_calendar) as Button
 //        mAddEventButton = findViewById<View>(R.id.button_main_add_event) as Button
-        mGetEventButton = findViewById<View>(R.id.button_main_get_event) as Button
+//        mGetEventButton = findViewById<View>(R.id.button_main_get_event) as Button
 //        mStatusText = findViewById<View>(R.id.textview_main_result) as TextView
 //        mResultText = findViewById<View>(R.id.textview_main_status) as TextView
 
@@ -1174,13 +1209,13 @@ class MainActivity : AppCompatActivity() {
 //            resultsFromApi
 //            mAddEventButton!!.isEnabled = true
 //        }
-        mGetEventButton!!.setOnClickListener {
-            mGetEventButton!!.isEnabled = false
+//       mGetEventButton!!.setOnClickListener {
+//           mGetEventButton!!.isEnabled = false
 //            mStatusText!!.text = ""
-            mID = 3 //이벤트 가져오기
-            resultsFromApi
-            mGetEventButton!!.isEnabled = true
-        }
+//           mID = 3 //이벤트 가져오기
+//           resultsFromApi
+//           mGetEventButton!!.isEnabled = true
+//       }
 
 
         // Google  API의 호출 결과를 표시하는 TextView를 준비
@@ -1202,6 +1237,9 @@ class MainActivity : AppCompatActivity() {
             applicationContext,
             Arrays.asList(*SCOPES)
         ).setBackOff(ExponentialBackOff()) // I/O 예외 상황을 대비해서 백오프 정책 사용
+
+        //06.19 google calendar list 불러오기
+        resultsFromApi
     }
 
 
@@ -1487,39 +1525,47 @@ class MainActivity : AppCompatActivity() {
                     .setSingleEvents(true)
                     .execute()
                 val items = events.items
+                val countschedule = findViewById<TextView>(R.id.datecnt)
 
                 // 2022-06-07 중복 데이터 제거 위치 변경
                 model.schedule_list.value?.clear()
+                    //06.19 UI 변경 Error
+                    runOnUiThread(Runnable{
+                        for (event in items) {
+                            var start = event.start.dateTime
+                            if (start == null) {
 
-                for (event in items) {
-                    var start = event.start.dateTime
-                    if (start == null) {
-
-                        // 모든 이벤트가 시작 시간을 갖고 있지는 않다. 그런 경우 시작 날짜만 사용
-                        start = event.start.date
-                    }
-                    eventStrings.add(String.format("%s  (%s)\n", event.summary, start))
-                    // 2022-05-28 중복된 데이터가 생기는 것을 방지
-                    // 2022-056-07 중복 데이터 제거 위치 변경
+                                // 모든 이벤트가 시작 시간을 갖고 있지는 않다. 그런 경우 시작 날짜만 사용
+                                start = event.start.date
+                            }
+                            eventStrings.add(String.format("%s  (%s)\n", event.summary, start))
+                            // 2022-05-28 중복된 데이터가 생기는 것을 방지
+                            // 2022-056-07 중복 데이터 제거 위치 변경
 //                    model.schedule_list.value?.clear()
 
-                    // 2022-05-26 구글 캘린더 데이터를 실제 레이아웃에 연결
-                    model.schedule_list.value?.add(Schedule(
-                        uid = if (event.id != null) event.id else "",
-                        created = if (event.created != null) event.created.toString() else "",
-                        description = if (event.description != null) event.description else "",
-                        location = if (event.location != null) event.location else "",
-                        summary = if (event.summary != null) event.summary else "",
-                        end = if (event.end != null && event.end.dateTime != null) event.end.dateTime.toString() else "",
-                        begin = if (event.start != null && event.start.dateTime != null) event.start.dateTime.toString() else "",
-                        dtstart = if (event.start != null && event.start.date != null) event.start.date.toString() else "",
-                        dtend = if (event.end != null && event.end.date != null) event.end.date.toString() else "",
-                    ))
+                            // 2022-05-26 구글 캘린더 데이터를 실제 레이아웃에 연결
+                            model.schedule_list.value?.add(Schedule(
+                                uid = if (event.id != null) event.id else "",
+                                created = if (event.created != null) event.created.toString() else "",
+                                description = if (event.description != null) event.description else "",
+                                location = if (event.location != null) event.location else "",
+                                summary = if (event.summary != null) event.summary else "",
+                                end = if (event.end != null && event.end.dateTime != null) event.end.dateTime.toString() else "",
+                                begin = if (event.start != null && event.start.dateTime != null) event.start.dateTime.toString() else "",
+                                dtstart = if (event.start != null && event.start.date != null) event.start.date.toString() else "",
+                                dtend = if (event.end != null && event.end.date != null) event.end.date.toString() else "",
+                                weather = ModelWeather(),
+                            ))
 
-                }
+                        }
 
-                // 2022-05-26 데이터가 변경되었음을 알려 갱신을 유도함
-                member_schedule_adapter.notifyDataSetChanged()
+                        // 2022-05-26 데이터가 변경되었음을 알려 갱신을 유도함
+                        member_schedule_adapter.notifyDataSetChanged()
+
+
+                        countschedule.text = eventStrings.size.toString() + "개"
+                    })
+
                 //return eventStrings.size.toString() + "개의 데이터를 가져왔습니다."
                 return "가져온 데이터 \n" + eventStrings.toString()
             }
@@ -1590,7 +1636,8 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 else {
-//                    mStatusText!!.text = """
+//                    var errormsg = findViewById<TextView>(R.id.errormsg)
+//                    errormsg.text = """
 //                        MakeRequestTask The following error occurred:
 //                        ${mLastError!!.message}
 //                        """.trimIndent()
@@ -1690,11 +1737,24 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.app_name), "App notification channel"
         )
 
+        var button = findViewById<TextView>(R.id.alarmTime)
+            button.setOnClickListener {
+                getTime(button, this)
+        }
+
+
         // 2022-06-09 Setting Activity에서 가져온 알람 설정 여부 저장 및 이벤트 리스너 설정 코드
         m_switch_alarm_1 = findViewById<Switch>(R.id.switchAlarm1) as CompoundButton
         m_switch_alarm_1!!.isChecked =
             PreferenceHelper.getBoolean(applicationContext, Constants.SHARED_PREF_NOTIFICATION_KEY_A)
         m_switch_alarm_1!!.setOnCheckedChangeListener { buttonView, isChecked ->
+            // 2022-06-21 스위치를 켰을 때 위젯을 사용할 수 있도록 변수 할당
+            alarmTime = findViewById(R.id.alarmTime)
+            // 2022-06-21 알람 설정 및 모델이 제대로 동작하도록 하단 코드 추가
+            instance?.alarmTime = findViewById(R.id.alarmTime)
+            instance?.model = model
+            instance?.model?.schedule_list = model.schedule_list
+            instance?.model?.weather_data = model.weather_data
             if (isChecked) {
                 val isChannelCreated: Boolean = NotificationHelper.isNotificationChannelCreated(
                     applicationContext
@@ -1719,39 +1779,54 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        m_switch_alarm_2 = findViewById<Switch>(R.id.switchAlarm2) as CompoundButton
-        m_switch_alarm_2!!.isChecked =
-            PreferenceHelper.getBoolean(applicationContext, Constants.SHARED_PREF_NOTIFICATION_KEY_B)
-        m_switch_alarm_2!!.setOnCheckedChangeListener { buttonView, isChecked ->
-            if (isChecked) {
-                val isChannelCreated: Boolean = NotificationHelper.isNotificationChannelCreated(
-                    applicationContext
-                )
-                if (isChannelCreated) {
-                    PreferenceHelper.setBoolean(
-                        applicationContext,
-                        Constants.SHARED_PREF_NOTIFICATION_KEY_B,
-                        true
-                    )
-                    NotificationHelper.setScheduledNotification(WorkManager.getInstance(applicationContext))
-                } else {
-                    NotificationHelper.createNotificationChannel(applicationContext)
-                }
-            } else {
-                PreferenceHelper.setBoolean(
-                    applicationContext,
-                    Constants.SHARED_PREF_NOTIFICATION_KEY_B,
-                    false
-                )
-                WorkManager.getInstance(applicationContext).cancelAllWork()
-            }
-        }
+//        m_switch_alarm_2 = findViewById<Switch>(R.id.switchAlarm2) as CompoundButton
+//        m_switch_alarm_2!!.isChecked =
+//            PreferenceHelper.getBoolean(applicationContext, Constants.SHARED_PREF_NOTIFICATION_KEY_B)
+//        m_switch_alarm_2!!.setOnCheckedChangeListener { buttonView, isChecked ->
+//            if (isChecked) {
+//                val isChannelCreated: Boolean = NotificationHelper.isNotificationChannelCreated(
+//                    applicationContext
+//                )
+//                if (isChannelCreated) {
+//                    PreferenceHelper.setBoolean(
+//                        applicationContext,
+//                        Constants.SHARED_PREF_NOTIFICATION_KEY_B,
+//                        true
+//                    )
+//                    NotificationHelper.setScheduledNotification(WorkManager.getInstance(applicationContext))
+//                } else {
+//                    NotificationHelper.createNotificationChannel(applicationContext)
+//                }
+//            } else {
+//                PreferenceHelper.setBoolean(
+//                    applicationContext,
+//                    Constants.SHARED_PREF_NOTIFICATION_KEY_B,
+//                    false
+//                )
+//                WorkManager.getInstance(applicationContext).cancelAllWork()
+//            }
+//        }
 
 
         //showNotification()
     }
 
+    fun getTime(button: TextView, context: Context){
 
+        val cal = Calendar.getInstance()
+        var timetxt = findViewById<TextView>(R.id.alarmTime)
+
+        val timeSetListener = TimePickerDialog.OnTimeSetListener { timePicker, hour, minute ->
+            cal.set(Calendar.HOUR_OF_DAY, hour)
+            cal.set(Calendar.MINUTE, minute)
+
+            timetxt.text = SimpleDateFormat("HH:mm").format(cal.time)
+            saveData()
+        }
+
+        TimePickerDialog(context, timeSetListener, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+
+    }
 
 
 
@@ -1980,18 +2055,27 @@ class MainActivity : AppCompatActivity() {
                 var schedule = model.schedule_list.value!![i]
                 val weather_model = weather_iter?.next()
 
-                val sky = (weather_model?.sky ?: "")
+                //06.20 rain 타입 추가
+                //sky: 0...
+                //rainType: 10 ...
+                val sky = (
+                        when(weather_model?.rainType) {
+
+                            "0" -> weather_model?.sky ?: ""
+                            else -> (weather_model?.rainType!!.toInt() + 10).toString()
+                        }
+                )
                 var sky_string = ""
-                if (sky == "0") {
+                if (sky == "1") {
                     sky_string = "맑음"
-                } else if (sky == "1") {
-                    sky_string = "비"
-                } else if (sky == "2") {
-                    sky_string = "진눈깨비"
                 } else if (sky == "3") {
-                    sky_string = "눈"
+                    sky_string = "구름 많음"
                 } else if (sky == "4") {
-                    sky_string = "소나기"
+                    sky_string = "흐림"
+                } else if (sky == "11"){
+                    sky_string = "비"
+                } else{
+
                 }
 
                 if (i == 0) {

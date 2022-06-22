@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 
 // 동적으로 추가 및 삭제되는 데이터를 반영하기 위한 뷰모델
 class ScheduleViewModel : ViewModel() {
-    val schedule_list = MutableLiveData<MutableList<Schedule>>()
+    var schedule_list = MutableLiveData<MutableList<Schedule>>()
     var weather_data = MutableLiveData<Array<ModelWeather>>()
     // 2022-05-28 더이상 사용하지 않음. 
 //    private val schedule_list_inner = mutableListOf<Schedule>()
